@@ -1,0 +1,666 @@
+{
+  "name": "Thread 2 - AI Recruitment Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tuyen-dung-cv",
+        "options": {}
+      },
+      "id": "067536c2-4f97-4b1d-b7e9-333c98793746",
+      "name": "Webhook - Nhận CV",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        128
+      ],
+      "webhookId": "a23f438b-85fd-415a-aced-cda7f637d2d8"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Có một yêu cầu gửi đến với file đính kèm là: {{ $binary.data.fileName }}. Dựa vào tên file và logic, hãy phân loại intent.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Role: You are the Orchestrator Agent (Gatekeeper) for an AI recruitment system.\nInstructions: Your objective is to analyze the incoming payload (email text or JSON webhook) and determine its intent.\nRules:\nIf the input is a request to open a new job position, route to \"Agent_1_Profiler\".\nIf the input contains a resume attachment or applies for a job, route to \"Agent_3_Extractor\".\nIf the input is a candidate replying with time availability, route to \"Agent_6_Scheduler\".\nOutput strict JSON format: {\"intent\": \"<intent_name>\", \"confidence_score\": , \"extracted_payload\": {}} \"Nếu là hồ sơ ứng tuyển hoặc CV, BẮT BUỘC trả về intent là: Agent_3_Extractor\"\n\n\"KHÔNG ĐƯỢC dùng các từ khác như 'Apply for job' hay 'Candidate'.\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -32,
+        320
+      ],
+      "id": "94ba1d22-3454-4176-8ebb-e961c24ec9a9",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"intent\": \"Agent_3_Extractor\",\n  \"confidence_score\": 0.95,\n  \"extracted_payload\": {}\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        192,
+        512
+      ],
+      "id": "bc66da27-98ea-41c5-96f1-1c534f66d050",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        592
+      ],
+      "id": "7f896195-be9b-4421-a3fc-4108eab444f5",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "0sAP5oyAHKYu1qJm",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.intent }}",
+                    "rightValue": "Extractor",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "f1402c1a-c03e-4607-96de-1b6311d388f6"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        304,
+        304
+      ],
+      "id": "a62971d5-49a6-4263-998d-253240eafdb0",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        528,
+        320
+      ],
+      "id": "e48f9090-b5e1-4f50-ad49-3ff412795939",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Nội dung CV của ứng viên: {{ $json.text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Role: You are a Senior Technical Screener.\nInstructions: Evaluate the candidate's extracted Resume text against the Job Description.\nRules:\nLook for transferable skills, not just exact keyword matches.\nAssign a Fit Score from 0 to 100 based on: Technical Skills (50%), Experience (30%), Others (20%).\nOutput strict JSON containing: \"fit_score\", \"top_3_strengths\", \"top_3_weaknesses\", \"recommendation\" (Pass/Fail).\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        752,
+        336
+      ],
+      "id": "a2349a5e-75c2-415e-bda8-8dd1b67f9818",
+      "name": "Agent 3 - Resume Matcher"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        624,
+        544
+      ],
+      "id": "007687f7-ebca-4188-b818-ea06e2235862",
+      "name": "Groq Chat Model2",
+      "credentials": {
+        "groqApi": {
+          "id": "0sAP5oyAHKYu1qJm",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"full_name\": \"Phan Van Phuc\",\n  \"email\": \"phuc@student.hcmus.edu.vn\",\n  \"fit_score\": 85,\n  \"recommendation\": \"Pass - Ưu tiên phỏng vấn vì có project CV xịn.\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        928,
+        608
+      ],
+      "id": "44b9491b-7cd0-49f2-b177-bcf4d1330e34",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        736,
+        -48
+      ],
+      "id": "4a8aca82-1213-40e6-9ca2-bafbdf14a6b8",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        640
+      ],
+      "id": "5d8895c6-0f0d-4891-a766-402dabe233ff",
+      "name": "Groq Chat Model3",
+      "credentials": {
+        "groqApi": {
+          "id": "0sAP5oyAHKYu1qJm",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Agent 3 - Resume Matcher').item.json.output.recommendation }}",
+                    "rightValue": "Pass",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a710cd31-1508-43ec-9061-7275a19e3574"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "177f6747-751c-49a9-837f-e9421a6f5dce",
+                    "leftValue": "={{ $('Agent 3 - Resume Matcher').item.json.output.recommendation }}",
+                    "rightValue": "Fail",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1632,
+        432
+      ],
+      "id": "ea52d092-a84f-4cfc-a7a0-009a1254d34e",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Agent 3 - Resume Matcher').item.json.output.email }}",
+        "subject": "=Phản hồi hồ sơ ứng tuyển - {{ $('Agent 3 - Resume Matcher').item.json.output.full_name }}",
+        "message": "={{ $('AI Agent4').item.json.output.email_content }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1968,
+        320
+      ],
+      "id": "1516d12c-8658-4de2-a09c-c108ed0aabc4",
+      "name": "Send a message",
+      "webhookId": "a8f0beac-000b-4f60-ab54-c837c611e822",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OSTbQXiPsCd5A4os",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Đây là kết quả từ Agent 3: {{ $json.output }}. Hãy rà soát lại xem có định kiến về giới tính, tuổi tác hay vùng miền không. Sau đó, dựa vào recommendation (Pass/Fail), hãy soạn nội dung email gửi ứng viên. Nếu rớt, hãy chỉ ra 2 điểm yếu cụ thể từ CV: {{ $node[\"Extract from File\"].json.text }}.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Role: You are an AI Ethics Auditor & Candidate Experience Manager.\nInstructions:\nReview Agent 3's evaluation for any signs of bias (age, gender, origin).\nIf the candidate failed, write an empathetic, personalized rejection email. Include 2 actionable pieces of advice to improve their weak points.\nRules: Tone must be warm, constructive, and strictly non-robotic."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1280,
+        432
+      ],
+      "id": "613899de-5705-4d28-9b9f-c0dac56baa25",
+      "name": "AI Agent4"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1360,
+        128
+      ],
+      "id": "ac4c1094-d974-48eb-b9c5-242087b2fbb0",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"bias_check\": \"Clean\",\n  \"email_content\": \"Chào bạn, cảm ơn bạn đã ứng tuyển vị trí AI Intern...\",\n  \"recommendation\": \"Pass\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1456,
+        640
+      ],
+      "id": "e8907500-b55e-473f-bc86-b897c83e2f90",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "candidates",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "full_name": "={{ $json.output.full_name }}",
+            "fit_score": "={{ $json.output.fit_score }}",
+            "recommendation": "={{ $json.output.recommendation }}",
+            "id": 0,
+            "email": "={{ $json.output.email }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "full_name",
+              "displayName": "full_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fit_score",
+              "displayName": "fit_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recommendation",
+              "displayName": "recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "strengths",
+              "displayName": "strengths",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "weaknesses",
+              "displayName": "weaknesses",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cv_text",
+              "displayName": "cv_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "7827d98e-d9ca-4cdb-8bb9-9aa494bd8e6f",
+      "name": "Lưu Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1072,
+        -32
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OZcwWtSa24NoPMwA",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent 3 - Resume Matcher",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agent 3 - Resume Matcher",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Nhận CV": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Agent 3 - Resume Matcher",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 3 - Resume Matcher": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent4",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "AI Agent4": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent4",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "13fd8230-b1c2-45ae-b0ad-5c1662663415",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "96c7a75be158f5dac6e6ad5921a0d89ad634f8f2b3c08057f98f5df374e26db2"
+  },
+  "id": "NHGBXPauKq8AL3iL",
+  "tags": []
+}

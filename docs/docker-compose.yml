@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # 1. Database lưu thông tin ứng viên (Agent 2, 6, 8, 9 dùng)
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    environment:
+      - POSTGRES_USER=phuc_admin
+      - POSTGRES_PASSWORD=free_pass
+      - POSTGRES_DB=recruitment_db
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+
+  # 2. Vector Database để so khớp CV (Agent 3 dùng thay cho Pinecone)
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant_db
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant_data:/qdrant/storage
+
+  # 3. "Bộ não" n8n điều phối các Agent
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n_app
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_USER=phuc_admin
+      - DB_POSTGRESDB_PASSWORD=free_pass
+      - DB_POSTGRESDB_DATABASE=recruitment_db
+      - N8N_ENCRYPTION_KEY=phuc_secret_key
+    depends_on:
+      - postgres
+      - qdrant
+    volumes:
+      - ./n8n_data:/home/node/.n8n
